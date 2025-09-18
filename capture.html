@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Claim Capture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body{font-family:Inter,Arial,Helvetica,sans-serif;max-width:720px;margin:18px auto;padding:0 14px;color:#111}
+  h2{margin:0 0 8px}
+  label{display:block;margin-top:12px;font-weight:600}
+  .small{font-size:13px;color:#555}
+  input[type="file"]{display:block;margin-top:6px}
+  .btn{background:#0b63d6;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin-top:14px;font-weight:600}
+  .ok{color:green;font-weight:600}
+  .bad{color:#c0392b;font-weight:600}
+  pre{background:#f7f7f8;padding:10px;border-radius:6px;overflow:auto}
+</style>
+</head>
+<body>
+  <h2>Capture vehicle evidence</h2>
+  <p class="small">Use your phone camera. Capture clear front & rear photos (plate visible) and a close-up of engine/chassis plate. A short walk-around video is optional.</p>
+
+  <label>Front photo (camera)</label>
+  <input id="front" type="file" accept="image/*" capture="environment">
+  <div id="frontRes" class="small"></div>
+
+  <label>Back photo (camera)</label>
+  <input id="back" type="file" accept="image/*" capture="environment">
+  <div id="backRes" class="small"></div>
+
+  <label>Engine / VIN close-up (camera)</label>
+  <input id="engine" type="file" accept="image/*" capture="environment">
+  <div id="engineRes" class="small"></div>
+
+  <label>Short video (optional)</label>
+  <input id="video" type="file" accept="video/*" capture="environment">
+
+  <label>Email</label>
+  <input id="email" type="email" placeholder="you@company.com">
+
+  <div>
+    <button id="checkBtn" class="btn">Check OCR & Upload</button>
+  </div>
+
+  <div id="status" style="margin-top:12px"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+  <script>
+  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/a4bfe729-18f4-46ee-8887-44bed11a9327"; // <<-- paste webhook URL here
+
+  const vinRegex = /([A-HJ-NPR-Z0-9]{11,17})/i;
+  const plateRegex = /([A-Z0-9]{2,3}[-\s]?[A-Z0-9]{2,4})/i;
+
+  function readFileAsDataURL(file){
+    return new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = ()=>res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function ocrBase64(base64) {
+    const dataUrl = 'data:image/jpeg;base64,' + base64;
+    const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: m => {} });
+    return text || "";
+  }
+
+  async function doChecks(){
+    document.getElementById('status').innerText = "Running OCR checks...";
+    const frontFile = document.getElementById('front').files[0];
+    const backFile  = document.getElementById('back').files[0];
+    const engineFile= document.getElementById('engine').files[0];
+    const videoFile = document.getElementById('video').files[0];
+    const email = document.getElementById('email').value;
+
+    if(!frontFile || !backFile || !engineFile || !email){
+      document.getElementById('status').innerHTML = '<span class="bad">Please provide front, back, engine photos and email.</span>';
+      return;
+    }
+
+    try{
+      const frontBase64 = await readFileAsDataURL(frontFile);
+      const backBase64  = await readFileAsDataURL(backFile);
+      const engineBase64= await readFileAsDataURL(engineFile);
+
+      const [frontText, backText, engineText] = await Promise.all([
+        ocrBase64(frontBase64),
+        ocrBase64(backBase64),
+        ocrBase64(engineBase64)
+      ]);
+
+      const frontPlate = (frontText.match(plateRegex) || [null])[0];
+      const backPlate  = (backText.match(plateRegex)  || [null])[0];
+      const engineVin  = (engineText.match(vinRegex)   || [null])[0];
+
+      document.getElementById('frontRes').innerHTML = frontPlate ? `<span class="ok">Plate found: ${frontPlate}</span>` : '<span class="bad">Plate not found in front image</span>';
+      document.getElementById('backRes').innerHTML  = backPlate  ? `<span class="ok">Plate found: ${backPlate}</span>`  : '<span class="bad">Plate not found in back image</span>';
+      document.getElementById('engineRes').innerHTML= engineVin  ? `<span class="ok">VIN-like text: ${engineVin}</span>` : '<span class="bad">VIN not found</span>';
+
+      const pass = (frontPlate || backPlate) && engineVin;
+
+      if(!pass){
+        document.getElementById('status').innerHTML = '<div class="bad">OCR checks failed. Please retake clearer photos. You may still upload but mark as "ocr_failed".</div>';
+      } else {
+        document.getElementById('status').innerHTML = '<div class="ok">OCR checks passed. Uploading now...</div>';
+      }
+
+      const fd = new FormData();
+      fd.append('email', email);
+      fd.append('frontName', frontFile.name);
+      fd.append('backName', backFile.name);
+      fd.append('engineName', engineFile.name);
+      fd.append('ocr.front_text', frontText);
+      fd.append('ocr.back_text', backText);
+      fd.append('ocr.engine_text', engineText);
+      fd.append('plate.detected_front', frontPlate || "");
+      fd.append('plate.detected_back',  backPlate  || "");
+      fd.append('vin.detected', engineVin || "");
+      fd.append('ocr_ok', pass ? 'true' : 'false');
+      fd.append('front', frontFile);
+      fd.append('back', backFile);
+      fd.append('engine', engineFile);
+      if(videoFile) fd.append('video', videoFile);
+
+      const res = await fetch(WEBHOOK, { method:'POST', body:fd });
+      const json = await res.json();
+      if(res.ok){
+        document.getElementById('status').innerHTML = '<div class="ok">Upload successful. You will receive email confirmation.</div>';
+      } else {
+        document.getElementById('status').innerHTML = `<div class="bad">Upload failed: ${json.message||res.statusText}</div>`;
+      }
+    } catch(err){
+      console.error(err);
+      document.getElementById('status').innerHTML = `<div class="bad">Error during OCR/upload: ${err.message}</div>`;
+    }
+  }
+
+  document.getElementById('checkBtn').addEventListener('click', doChecks);
+  </script>
+</body>
+</html>
