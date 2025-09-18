@@ -10,7 +10,7 @@
   label{display:block;margin-top:12px;font-weight:600}
   .small{font-size:13px;color:#555}
   input[type="file"]{display:block;margin-top:6px}
-  .btn{background:#0b63d6;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin-top:14px;font-weight:600}
+  .btn{background:#0b63d6;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin-top:14px;font-weight:600;cursor:pointer}
   .ok{color:green;font-weight:600}
   .bad{color:#c0392b;font-weight:600}
   pre{background:#f7f7f8;padding:10px;border-radius:6px;overflow:auto}
@@ -46,7 +46,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <script>
-  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; // <<-- paste webhook URL here
+  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; 
 
   const vinRegex = /([A-HJ-NPR-Z0-9]{11,17})/i;
   const plateRegex = /([A-Z0-9]{2,3}[-\s]?[A-Z0-9]{2,4})/i;
@@ -62,12 +62,14 @@
 
   async function ocrBase64(base64) {
     const dataUrl = 'data:image/jpeg;base64,' + base64;
-    const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: m => {} });
+    const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng');
     return text || "";
   }
 
-  async function doChecks(){
+  async function doChecks(e){
+    e.preventDefault();
     document.getElementById('status').innerText = "Running OCR checks...";
+
     const frontFile = document.getElementById('front').files[0];
     const backFile  = document.getElementById('back').files[0];
     const engineFile= document.getElementById('engine').files[0];
@@ -80,9 +82,12 @@
     }
 
     try{
-      const frontBase64 = await readFileAsDataURL(frontFile);
-      const backBase64  = await readFileAsDataURL(backFile);
-      const engineBase64= await readFileAsDataURL(engineFile);
+      // OCR step
+      const [frontBase64, backBase64, engineBase64] = await Promise.all([
+        readFileAsDataURL(frontFile),
+        readFileAsDataURL(backFile),
+        readFileAsDataURL(engineFile)
+      ]);
 
       const [frontText, backText, engineText] = await Promise.all([
         ocrBase64(frontBase64),
@@ -101,11 +106,12 @@
       const pass = (frontPlate || backPlate) && engineVin;
 
       if(!pass){
-        document.getElementById('status').innerHTML = '<div class="bad">OCR checks failed. Please retake clearer photos. You may still upload but mark as "ocr_failed".</div>';
+        document.getElementById('status').innerHTML = '<div class="bad">OCR checks failed. Still uploading as "ocr_failed".</div>';
       } else {
         document.getElementById('status').innerHTML = '<div class="ok">OCR checks passed. Uploading now...</div>';
       }
 
+      // Always upload to n8n webhook
       const fd = new FormData();
       fd.append('email', email);
       fd.append('frontName', frontFile.name);
@@ -124,12 +130,14 @@
       if(videoFile) fd.append('video', videoFile);
 
       const res = await fetch(WEBHOOK, { method:'POST', body:fd });
-      const json = await res.json();
-      if(res.ok){
-        document.getElementById('status').innerHTML = '<div class="ok">Upload successful. You will receive email confirmation.</div>';
-      } else {
-        document.getElementById('status').innerHTML = `<div class="bad">Upload failed: ${json.message||res.statusText}</div>`;
-      }
+      let msg = "Upload complete.";
+      try {
+        const json = await res.json();
+        msg += " Response: " + JSON.stringify(json);
+      } catch {}
+      document.getElementById('status').innerHTML = res.ok 
+        ? `<div class="ok">${msg}</div>`
+        : `<div class="bad">Upload failed: ${res.statusText}</div>`;
     } catch(err){
       console.error(err);
       document.getElementById('status').innerHTML = `<div class="bad">Error during OCR/upload: ${err.message}</div>`;
