@@ -129,12 +129,15 @@
       fd.append('engine', engineFile);
       if(videoFile) fd.append('video', videoFile);
 
+      // Updated fetch handling
       const res = await fetch(WEBHOOK, { method:'POST', body:fd });
       let msg = "Upload complete.";
       try {
         const json = await res.json();
         msg += " Response: " + JSON.stringify(json);
-      } catch {}
+      } catch {
+        msg += " (no JSON response)";
+      }
       document.getElementById('status').innerHTML = res.ok 
         ? `<div class="ok">${msg}</div>`
         : `<div class="bad">Upload failed: ${res.statusText}</div>`;
