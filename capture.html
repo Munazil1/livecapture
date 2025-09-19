@@ -2,118 +2,239 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Claim Capture</title>
+<title>Claim Capture — VIN Required</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   body{font-family:Inter,Arial,sans-serif;max-width:720px;margin:18px auto;padding:0 14px;color:#111}
   h2{margin:0 0 8px}
+  label{display:block;margin-top:12px;font-weight:600}
   .slot{margin-top:14px;padding:12px;border:1px solid #eee;border-radius:8px;background:#fafafa}
-  video{width:100%;border-radius:8px;background:#000;max-height:50vh;object-fit:cover}
+  video{width:100%;border-radius:8px;background:#000;max-height:60vh;object-fit:cover}
   .overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70%;height:22%;border:3px dashed rgba(255,255,255,0.9);border-radius:6px;pointer-events:none}
-  .thumb{width:100px;height:70px;object-fit:cover;border:1px solid #ccc;border-radius:6px;margin-top:6px}
+  .thumb{width:120px;height:80px;object-fit:cover;border:1px solid #ccc;border-radius:6px;margin-top:6px}
   .btn{background:#0b63d6;color:#fff;padding:8px 14px;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer}
+  .btn-ghost{background:#f0f0f0;color:#222;border:1px solid #ddd}
+  .row{display:flex;gap:12px;align-items:center;margin-top:8px}
+  input[type="file"]{display:none}
+  input[type="text"], input[type="email"]{width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;margin-top:6px}
+  .hint{font-size:13px;color:#555;margin-top:6px}
+  .status{margin-top:12px}
+  .center{text-align:center}
 </style>
 </head>
 <body>
-  <h2>Capture vehicle evidence</h2>
+  <h2>Capture vehicle evidence — VIN required</h2>
+  <p class="hint">Please capture clear photos of: Front plate, Back plate, and a close-up of the Chassis/VIN plate (MANDATORY). Optionally attach a short 360° video. Do not proceed unless chassis/VIN photo is clear.</p>
 
-  <div class="slot">
-    <h3>Front plate</h3>
-    <button class="btn" onclick="startCapture('front')">Capture Front</button>
-    <img id="thumb-front" class="thumb" style="display:none">
+  <!-- FRONT -->
+  <div class="slot" id="slot-front">
+    <h3>1) Front plate</h3>
+    <div class="hint">Align front number plate inside dashed box after camera opens.</div>
+    <div class="row">
+      <button class="btn" onclick="startCapture('front')">Capture Front</button>
+      <button class="btn-ghost" onclick="document.getElementById('fileFront').click()">Use file</button>
+      <img id="thumb-front" class="thumb" style="display:none">
+    </div>
   </div>
 
-  <div class="slot">
-    <h3>Back plate</h3>
-    <button class="btn" onclick="startCapture('back')">Capture Back</button>
-    <img id="thumb-back" class="thumb" style="display:none">
+  <!-- BACK -->
+  <div class="slot" id="slot-back">
+    <h3>2) Back plate</h3>
+    <div class="hint">Align rear number plate inside dashed box after camera opens.</div>
+    <div class="row">
+      <button class="btn" onclick="startCapture('back')">Capture Back</button>
+      <button class="btn-ghost" onclick="document.getElementById('fileBack').click()">Use file</button>
+      <img id="thumb-back" class="thumb" style="display:none">
+    </div>
   </div>
 
-  <div class="slot">
-    <h3>Engine number</h3>
-    <button class="btn" onclick="startCapture('engine')">Capture Engine</button>
-    <img id="thumb-engine" class="thumb" style="display:none">
+  <!-- CHASSIS (MANDATORY) -->
+  <div class="slot" id="slot-chassis">
+    <h3>3) Chassis / VIN (REQUIRED)</h3>
+    <div class="hint">IMPORTANT: take a close-up so the full VIN (usually 17 characters) is visible inside the dashed box. This is required to verify your claim.</div>
+    <div class="row">
+      <button class="btn" onclick="startCapture('chassis')">Capture Chassis (VIN)</button>
+      <button class="btn-ghost" onclick="document.getElementById('fileChassis').click()">Use file</button>
+      <img id="thumb-chassis" class="thumb" style="display:none">
+    </div>
   </div>
 
-  <div class="slot">
-    <h3>Chassis / VIN</h3>
-    <button class="btn" onclick="startCapture('chassis')">Capture Chassis</button>
-    <img id="thumb-chassis" class="thumb" style="display:none">
-  </div>
-
-  <div class="slot">
-    <h3>Optional 360° Video</h3>
+  <!-- VIDEO -->
+  <div class="slot" id="slot-video">
+    <h3>Optional: 360° Walk-around Video</h3>
+    <div class="hint">Short video (5–15s) showing the vehicle exterior. Optional but helpful.</div>
     <input type="file" id="videoFile" accept="video/*" capture="environment">
   </div>
 
-  <div style="margin-top:10px">
-    <input id="email" type="email" placeholder="Your email" style="width:100%;padding:8px">
-    <input id="policy" type="text" placeholder="Policy number (optional)" style="width:100%;padding:8px;margin-top:6px">
+  <!-- Hidden fallback file inputs -->
+  <input id="fileFront" type="file" accept="image/*">
+  <input id="fileBack" type="file" accept="image/*">
+  <input id="fileChassis" type="file" accept="image/*">
+
+  <!-- Contact -->
+  <div style="margin-top:12px">
+    <label>Email (we will notify you)</label>
+    <input id="email" type="email" placeholder="you@company.com">
+    <label style="margin-top:8px">Policy Number (optional)</label>
+    <input id="policy" type="text" placeholder="POL- or claim number">
   </div>
 
-  <button class="btn" onclick="uploadAll()">Upload All</button>
-  <div id="status" style="margin-top:12px"></div>
-
-  <!-- camera modal -->
-  <div id="cameraWrap" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:#000;z-index:999">
-    <video id="preview" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>
-    <div class="overlay"></div>
-    <button class="btn" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%)" onclick="takePhoto()">Take Photo</button>
+  <div class="center" style="margin-top:12px">
+    <button class="btn" onclick="uploadAll()">Upload All & Submit</button>
   </div>
 
-  <script>
-  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; 
+  <div id="status" class="status"></div>
 
-  let currentSlot = null;
-  let stream = null;
+  <!-- camera modal (single shared) -->
+  <div id="cameraWrap" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background:#000; z-index:999;">
+    <video id="preview" autoplay playsinline style="width:100%; height:100%; object-fit:cover;"></video>
+    <div class="overlay" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:70%; height:22%; border:3px dashed rgba(255,255,255,0.9); border-radius:6px; pointer-events:none;"></div>
+    <div style="position:absolute; left:0; right:0; bottom:18px; display:flex; justify-content:center; gap:12px;">
+      <button class="btn" onclick="takePhoto()">Take Photo</button>
+      <button class="btn-ghost" onclick="cancelCapture()">Cancel</button>
+    </div>
+  </div>
 
-  function startCapture(slot){
-    currentSlot = slot;
-    document.getElementById('cameraWrap').style.display = 'block';
-    navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(s=>{
-      stream = s;
-      document.getElementById('preview').srcObject = s;
-    });
+<script>
+/* ========== CONFIG: set your n8n webhook URL here ========== */
+const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload";
+/* =========================================================== */
+
+const SUPPORTS_MEDIA = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+let currentSlot = null;
+let currentStream = null;
+
+// hidden file elements
+const fileFront = document.getElementById('fileFront');
+const fileBack = document.getElementById('fileBack');
+const fileChassis = document.getElementById('fileChassis');
+
+// wire file fallback changes
+fileFront.addEventListener('change', () => handleFileFallback(fileFront.files[0], 'front'));
+fileBack.addEventListener('change', () => handleFileFallback(fileBack.files[0], 'back'));
+fileChassis.addEventListener('change', () => handleFileFallback(fileChassis.files[0], 'chassis'));
+
+function handleFileFallback(file, slot){
+  if(!file) return;
+  const thumb = document.getElementById('thumb-' + slot);
+  const url = URL.createObjectURL(file);
+  thumb.src = url;
+  thumb.style.display = 'inline-block';
+  thumb.blob = file; // store file as blob for upload
+}
+
+// start camera for a specific slot (opens modal)
+async function startCapture(slot){
+  currentSlot = slot;
+  document.getElementById('cameraWrap').style.display = 'block';
+  // require user gesture; open camera
+  if(!SUPPORTS_MEDIA){
+    alert('Camera not supported on this device — please use "Use file" to attach photos.');
+    return;
+  }
+  try{
+    // request environment camera
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    currentStream = stream;
+    const preview = document.getElementById('preview');
+    preview.srcObject = stream;
+    await preview.play().catch(()=>{});
+  }catch(err){
+    console.warn('camera error', err);
+    alert('Unable to start camera. Please use the file upload fallback.');
+    document.getElementById('cameraWrap').style.display = 'none';
+  }
+}
+
+function cancelCapture(){
+  if(currentStream){
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
+  }
+  document.getElementById('cameraWrap').style.display = 'none';
+  currentSlot = null;
+}
+
+// take photo from preview, store into thumbnail and as blob for upload
+function takePhoto(){
+  const preview = document.getElementById('preview');
+  if(!preview || !preview.videoWidth) {
+    alert('Camera not ready, try again.');
+    return;
+  }
+  // draw frame to canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = preview.videoWidth;
+  canvas.height = preview.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
+
+  // stop camera
+  if(currentStream){
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
+  }
+  document.getElementById('cameraWrap').style.display = 'none';
+
+  // crop center area slightly? we keep full image for backend processing
+  canvas.toBlob(function(blob){
+    const thumbEl = document.getElementById('thumb-' + currentSlot);
+    thumbEl.src = URL.createObjectURL(blob);
+    thumbEl.style.display = 'inline-block';
+    thumbEl.blob = blob; // store blob for upload
+    currentSlot = null;
+  }, 'image/jpeg', 0.92);
+}
+
+// upload validation & send to webhook
+async function uploadAll(){
+  const statusEl = document.getElementById('status');
+  statusEl.innerHTML = '';
+  const email = (document.getElementById('email').value || '').trim();
+  if(!email){
+    statusEl.innerHTML = '<span style="color:#c0392b">Please enter email before uploading.</span>';
+    return;
+  }
+  // gather blobs
+  const frontThumb = document.getElementById('thumb-front');
+  const backThumb = document.getElementById('thumb-back');
+  const chassisThumb = document.getElementById('thumb-chassis');
+
+  // requirement: chassis must exist
+  if(!chassisThumb.blob){
+    statusEl.innerHTML = '<span style="color:#c0392b">Chassis/VIN photo is required. Please capture it before uploading.</span>';
+    return;
   }
 
-  function takePhoto(){
-    const video = document.getElementById('preview');
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video,0,0);
-    stream.getTracks().forEach(t=>t.stop());
-    document.getElementById('cameraWrap').style.display='none';
-    canvas.toBlob(blob=>{
-      const url = URL.createObjectURL(blob);
-      const thumb = document.getElementById('thumb-'+currentSlot);
-      thumb.src = url;
-      thumb.style.display='inline-block';
-      thumb.blob = blob; // save blob for upload
-    },'image/jpeg',0.9);
-  }
+  // prepare FormData
+  const fd = new FormData();
+  fd.append('email', email);
+  fd.append('policyNumber', (document.getElementById('policy').value || '').trim());
 
-  async function uploadAll(){
-    const email = document.getElementById('email').value;
-    if(!email){ alert("Email required"); return; }
-    const fd = new FormData();
-    fd.append('email', email);
-    fd.append('policyNumber', document.getElementById('policy').value||"");
+  // append images if available
+  if(frontThumb.blob) fd.append('front', frontThumb.blob, 'front.jpg');
+  if(backThumb.blob) fd.append('back', backThumb.blob, 'back.jpg');
+  if(chassisThumb.blob) fd.append('chassis', chassisThumb.blob, 'chassis.jpg');
+  const videoFile = document.getElementById('videoFile').files[0];
+  if(videoFile) fd.append('video', videoFile);
 
-    ['front','back','engine','chassis'].forEach(slot=>{
-      const thumb = document.getElementById('thumb-'+slot);
-      if(thumb.blob){
-        fd.append(slot, thumb.blob, slot+'.jpg');
-      }
-    });
-    if(document.getElementById('videoFile').files[0]){
-      fd.append('video', document.getElementById('videoFile').files[0]);
+  statusEl.innerHTML = 'Uploading — please wait...';
+  try {
+    const res = await fetch(WEBHOOK, { method: 'POST', body: fd });
+    if(res.ok){
+      // try parse JSON response for helpful message
+      let info = '';
+      try { const j = await res.json(); info = '<div style="margin-top:8px;color:#333">Server: ' + JSON.stringify(j) + '</div>'; } catch(e){ }
+      statusEl.innerHTML = '<span style="color:green">Upload successful. We will notify you by email about next steps.</span>' + info;
+    } else {
+      statusEl.innerHTML = `<span style="color:#c0392b">Upload failed: ${res.status} ${res.statusText}</span>`;
     }
-
-    document.getElementById('status').innerText="Uploading...";
-    const res = await fetch(WEBHOOK,{method:'POST',body:fd});
-    document.getElementById('status').innerText = res.ok ? "Uploaded successfully" : "Upload failed: "+res.status;
+  } catch(err){
+    console.error(err);
+    statusEl.innerHTML = `<span style="color:#c0392b">Network error: ${err.message}</span>`;
   }
-  </script>
+}
+</script>
+
 </body>
 </html>
