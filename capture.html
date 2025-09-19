@@ -5,438 +5,125 @@
 <title>Claim Capture — Guided</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  body{font-family:Inter,Arial,Helvetica,sans-serif;max-width:780px;margin:18px auto;padding:0 14px;color:#111}
+  body{font-family:Inter,Arial,sans-serif;max-width:720px;margin:18px auto;padding:0 14px;color:#111}
   h2{margin:0 0 8px}
-  label{display:block;margin-top:12px;font-weight:600}
-  .small{font-size:13px;color:#555}
-  .slot {border:1px solid #eee;padding:12px;border-radius:10px;margin-top:10px;background:#fafafa}
-  .slot h3{margin:0 0 8px;font-size:15px}
-  #previewWrap{position:relative; max-width:100%; margin:8px 0}
-  video{width:100%;border-radius:8px;background:#000; max-height:52vh; object-fit:cover}
-  .overlay { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:76%; height:22%; border:3px dashed rgba(255,255,255,0.85); border-radius:6px; pointer-events:none; box-sizing:border-box }
-  .thumb {width:100px; height:70px; object-fit:cover; border-radius:6px; border:1px solid #ddd; margin-right:8px}
-  .btn{background:#0b63d6;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer}
-  .btn-gray{background:#777;color:#fff}
-  .row{display:flex;align-items:center}
-  input[type="file"]{display:none}
-  input[type="text"], input[type="email"]{width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;margin-top:6px}
+  .slot{margin-top:14px;padding:12px;border:1px solid #eee;border-radius:8px;background:#fafafa}
+  video{width:100%;border-radius:8px;background:#000;max-height:50vh;object-fit:cover}
+  .overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70%;height:22%;border:3px dashed rgba(255,255,255,0.9);border-radius:6px;pointer-events:none}
+  .thumb{width:100px;height:70px;object-fit:cover;border:1px solid #ccc;border-radius:6px;margin-top:6px}
+  .btn{background:#0b63d6;color:#fff;padding:8px 14px;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer}
   .ok{color:green;font-weight:600}
   .bad{color:#c0392b;font-weight:600}
-  .hint{font-size:12px;color:#666;margin-top:6px}
-  .flex{display:flex;gap:8px;align-items:center}
-  .smallBtn{background:#eee;border:none;padding:6px 8px;border-radius:6px;cursor:pointer}
-  .status{margin-top:12px}
-  .center{ text-align:center }
 </style>
 </head>
 <body>
-  <h2>Capture vehicle evidence (guided)</h2>
-  <p class="small">Take 4 clear photos: Front plate, Back plate, Engine/VIN close-up, Chassis/VIN close-up. Align the text inside the dashed rectangle. After each capture you can edit the OCR result before uploading.</p>
+  <h2>Capture vehicle evidence</h2>
 
-  <!-- Hidden form fields we will send -->
+  <div class="slot">
+    <h3>Front plate</h3>
+    <button class="btn" onclick="startCapture('front')">Capture Front</button>
+    <img id="thumb-front" class="thumb" style="display:none">
+    <input id="ocr-front" placeholder="OCR result" style="width:100%;margin-top:6px">
+  </div>
+
+  <div class="slot">
+    <h3>Back plate</h3>
+    <button class="btn" onclick="startCapture('back')">Capture Back</button>
+    <img id="thumb-back" class="thumb" style="display:none">
+    <input id="ocr-back" placeholder="OCR result" style="width:100%;margin-top:6px">
+  </div>
+
+  <div class="slot">
+    <h3>Engine / VIN</h3>
+    <button class="btn" onclick="startCapture('engine')">Capture Engine</button>
+    <img id="thumb-engine" class="thumb" style="display:none">
+    <input id="ocr-engine" placeholder="OCR result" style="width:100%;margin-top:6px">
+  </div>
+
+  <div class="slot">
+    <h3>Chassis / VIN</h3>
+    <button class="btn" onclick="startCapture('chassis')">Capture Chassis</button>
+    <img id="thumb-chassis" class="thumb" style="display:none">
+    <input id="ocr-chassis" placeholder="OCR result" style="width:100%;margin-top:6px">
+  </div>
+
+  <div class="slot">
+    <h3>Optional 360° Video</h3>
+    <input type="file" id="videoFile" accept="video/*" capture="environment">
+  </div>
+
   <div style="margin-top:10px">
-    <label>Email</label>
-    <input id="email" type="email" placeholder="you@company.com">
-    <label style="margin-top:8px">Policy Number (optional)</label>
-    <input id="policyNumber" type="text" placeholder="POL-...">
+    <input id="email" type="email" placeholder="Your email" style="width:100%;padding:8px">
+    <input id="policy" type="text" placeholder="Policy number (optional)" style="width:100%;padding:8px;margin-top:6px">
   </div>
 
-  <!-- Capture slots -->
-  <div id="slots">
-    <!-- FRONT -->
-    <div class="slot" id="slot-front">
-      <h3>1) Front plate (photo)</h3>
-      <div class="hint">Align vehicle's front number plate inside the dashed box and capture.</div>
-      <div id="previewWrapFront" style="position:relative; margin-top:8px;">
-        <video id="videoFront" playsinline autoplay></video>
-        <div class="overlay" id="overlayFront" style="display:block"></div>
-      </div>
-      <div class="flex" style="margin-top:8px">
-        <button class="btn" id="captureFrontBtn">Capture Front</button>
-        <button class="smallBtn" id="useFrontFileBtn">Use file</button>
-        <img id="thumbFront" class="thumb" src="" alt="" style="display:none">
-        <div style="flex:1">
-          <div class="small" style="margin-bottom:6px">Detected text (editable):</div>
-          <input id="frontOCR" type="text" placeholder="OCR result will appear here">
-        </div>
-      </div>
-    </div>
+  <button class="btn" onclick="uploadAll()">Upload All</button>
+  <div id="status" style="margin-top:12px"></div>
 
-    <!-- BACK -->
-    <div class="slot" id="slot-back">
-      <h3>2) Back plate (photo)</h3>
-      <div class="hint">Align rear number plate inside the dashed box and capture.</div>
-      <div id="previewWrapBack" style="position:relative; margin-top:8px;">
-        <video id="videoBack" playsinline autoplay muted></video>
-        <div class="overlay" id="overlayBack" style="display:block"></div>
-      </div>
-      <div class="flex" style="margin-top:8px">
-        <button class="btn" id="captureBackBtn">Capture Back</button>
-        <button class="smallBtn" id="useBackFileBtn">Use file</button>
-        <img id="thumbBack" class="thumb" src="" alt="" style="display:none">
-        <div style="flex:1">
-          <div class="small" style="margin-bottom:6px">Detected text (editable):</div>
-          <input id="backOCR" type="text" placeholder="OCR result will appear here">
-        </div>
-      </div>
-    </div>
-
-    <!-- ENGINE -->
-    <div class="slot" id="slot-engine">
-      <h3>3) Engine / VIN close-up</h3>
-      <div class="hint">Take a close-up so VIN/engine plate is clear inside the box.</div>
-      <div id="previewWrapEngine" style="position:relative; margin-top:8px;">
-        <video id="videoEngine" playsinline autoplay muted></video>
-        <div class="overlay" id="overlayEngine" style="display:block"></div>
-      </div>
-      <div class="flex" style="margin-top:8px">
-        <button class="btn" id="captureEngineBtn">Capture Engine</button>
-        <button class="smallBtn" id="useEngineFileBtn">Use file</button>
-        <img id="thumbEngine" class="thumb" src="" alt="" style="display:none">
-        <div style="flex:1">
-          <div class="small" style="margin-bottom:6px">Detected VIN (editable):</div>
-          <input id="engineOCR" type="text" placeholder="OCR result will appear here">
-        </div>
-      </div>
-    </div>
-
-    <!-- CHASSIS -->
-    <div class="slot" id="slot-chassis">
-      <h3>4) Chassis / VIN close-up</h3>
-      <div class="hint">Take a close-up of the chassis/VIN plate if available.</div>
-      <div id="previewWrapChassis" style="position:relative; margin-top:8px;">
-        <video id="videoChassis" playsinline autoplay muted></video>
-        <div class="overlay" id="overlayChassis" style="display:block"></div>
-      </div>
-      <div class="flex" style="margin-top:8px">
-        <button class="btn" id="captureChassisBtn">Capture Chassis</button>
-        <button class="smallBtn" id="useChassisFileBtn">Use file</button>
-        <img id="thumbChassis" class="thumb" src="" alt="" style="display:none">
-        <div style="flex:1">
-          <div class="small" style="margin-bottom:6px">Detected VIN (editable):</div>
-          <input id="chassisOCR" type="text" placeholder="OCR result will appear here">
-        </div>
-      </div>
-    </div>
-
-    <!-- VIDEO -->
-    <div class="slot" id="slot-video">
-      <h3>Optional: 360° walk-around video (10s)</h3>
-      <div class="hint">Record a short video rotating around the vehicle (optional). This helps visual assessment.</div>
-      <input id="videoFileInput" type="file" accept="video/*" capture="environment">
-    </div>
+  <!-- hidden video + overlay for capture -->
+  <div id="cameraWrap" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:#000;z-index:999">
+    <video id="preview" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <div class="overlay"></div>
+    <button class="btn" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%)" onclick="takePhoto()">Take Photo</button>
   </div>
 
-  <!-- Hidden file inputs for fallback */
-  <input id="fileFront" type="file" accept="image/*">
-  <input id="fileBack" type="file" accept="image/*">
-  <input id="fileEngine" type="file" accept="image/*">
-  <input id="fileChassis" type="file" accept="image/*">
-
-  <div style="margin-top:12px" class="center">
-    <button id="uploadBtn" class="btn">Upload all & Run OCR + Validate</button>
-  </div>
-
-  <div id="statusBox" class="status"></div>
-
-  <!-- tesseract -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <script>
-/* ===========================================================
-   CONFIG - set your webhook URL here
-   =========================================================== */
-const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; // <<-- set your n8n webhook
-/* =========================================================== */
+  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; 
 
-/* small helpers & regex */
-const plateRegex = /([A-Z0-9]{2,3}[-\s]?[A-Z0-9]{2,4})/i;
-const vinRegex   = /([A-HJ-NPR-Z0-9]{11,17})/i;
-const SUPPORTS_MEDIA = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  let currentSlot = null;
+  let stream = null;
 
-/* elements mapping */
-const videoFront = document.getElementById('videoFront');
-const videoBack = document.getElementById('videoBack');
-const videoEngine = document.getElementById('videoEngine');
-const videoChassis = document.getElementById('videoChassis');
-
-const captureFrontBtn = document.getElementById('captureFrontBtn');
-const captureBackBtn = document.getElementById('captureBackBtn');
-const captureEngineBtn = document.getElementById('captureEngineBtn');
-const captureChassisBtn = document.getElementById('captureChassisBtn');
-
-const useFrontFileBtn = document.getElementById('useFrontFileBtn');
-const useBackFileBtn = document.getElementById('useBackFileBtn');
-const useEngineFileBtn = document.getElementById('useEngineFileBtn');
-const useChassisFileBtn = document.getElementById('useChassisFileBtn');
-
-const thumbFront = document.getElementById('thumbFront');
-const thumbBack = document.getElementById('thumbBack');
-const thumbEngine = document.getElementById('thumbEngine');
-const thumbChassis = document.getElementById('thumbChassis');
-
-const fileFront = document.getElementById('fileFront');
-const fileBack = document.getElementById('fileBack');
-const fileEngine = document.getElementById('fileEngine');
-const fileChassis = document.getElementById('fileChassis');
-
-const frontOCR = document.getElementById('frontOCR');
-const backOCR = document.getElementById('backOCR');
-const engineOCR = document.getElementById('engineOCR');
-const chassisOCR = document.getElementById('chassisOCR');
-
-const uploadBtn = document.getElementById('uploadBtn');
-const statusBox = document.getElementById('statusBox');
-const videoFileInput = document.getElementById('videoFileInput');
-const emailInput = document.getElementById('email');
-const policyInput = document.getElementById('policyNumber');
-
-/* small canvases for capture */
-const canvas = document.createElement('canvas');
-
-/* function to start a camera stream into a video element - prefer back camera */
-async function startStream(videoEl){
-  if(!SUPPORTS_MEDIA) return null;
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-    videoEl.srcObject = stream;
-    await videoEl.play().catch(()=>{});
-    return stream;
-  }catch(err){
-    console.warn('camera start fail', err);
-    return null;
-  }
-}
-
-/* stop stream */
-function stopStream(videoEl){
-  try{
-    const s = videoEl.srcObject;
-    if(s && s.getTracks) s.getTracks().forEach(t=>t.stop());
-    videoEl.srcObject = null;
-  }catch(e){}
-}
-
-/* capture current frame from a video element -> returns Blob */
-function captureFrameBlobFromVideo(videoEl, cropOverlay = true){
-  const vw = videoEl.videoWidth || 1280;
-  const vh = videoEl.videoHeight || Math.round(vw * 0.6);
-  const cW = 1200; // canvas capture width (downscale for performance)
-  const cH = Math.round((vh / vw) * cW);
-  canvas.width = cW; canvas.height = cH;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(videoEl, 0, 0, cW, cH);
-
-  if(cropOverlay){
-    // crop center region (same ratio as overlay)
-    const cropW = Math.round(cW * 0.76);
-    const cropH = Math.round(cH * 0.22);
-    const sx = Math.round((cW - cropW)/2);
-    const sy = Math.round((cH - cropH)/2);
-    const tmp = document.createElement('canvas'); tmp.width = cropW; tmp.height = cropH;
-    tmp.getContext('2d').drawImage(canvas, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
-    return new Promise(res => tmp.toBlob(res, 'image/jpeg', 0.9));
-  }
-  return new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
-}
-
-/* convert File/Blob to dataURL base64 str (without prefix) */
-function blobToBase64NoPrefix(blob){
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const s = r.result;
-      if(typeof s !== 'string') return res('');
-      const idx = s.indexOf(',');
-      res(s.substring(idx+1));
-    };
-    r.onerror = rej;
-    r.readAsDataURL(blob);
-  });
-}
-
-/* run tesseract on a blob -> returns text */
-async function ocrBlob(blob){
-  try{
-    const dataUrl = await new Promise(r=>{
-      const fr = new FileReader();
-      fr.onload = ()=>r(fr.result);
-      fr.readAsDataURL(blob);
+  function startCapture(slot){
+    currentSlot = slot;
+    document.getElementById('cameraWrap').style.display = 'block';
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(s=>{
+      stream = s;
+      document.getElementById('preview').srcObject = s;
     });
-    const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: m => {} });
-    return (text || '').trim();
-  }catch(e){
-    console.warn('ocrBlob error', e);
-    return '';
   }
-}
 
-/* helper to set image thumb from blob */
-function setThumb(imgEl, blob){
-  const url = URL.createObjectURL(blob);
-  imgEl.src = url;
-  imgEl.style.display = 'inline-block';
-}
-
-/* file-input fallback -> convert selected file to blob and put into thumb + OCR */
-async function handleFileSelected(fileInput, slot){
-  const f = fileInput.files[0];
-  if(!f) return;
-  // set thumb
-  const url = URL.createObjectURL(f);
-  if(slot === 'front') { thumbFront.src = url; thumbFront.style.display='inline-block'; await fillOCRFromBlob(f, 'front'); }
-  if(slot === 'back')  { thumbBack.src = url; thumbBack.style.display='inline-block'; await fillOCRFromBlob(f, 'back'); }
-  if(slot === 'engine'){ thumbEngine.src = url; thumbEngine.style.display='inline-block'; await fillOCRFromBlob(f, 'engine'); }
-  if(slot === 'chassis'){ thumbChassis.src = url; thumbChassis.style.display='inline-block'; await fillOCRFromBlob(f, 'chassis'); }
-  // store file in hidden input so upload reads it
-  if(slot === 'front') fileFront.files = fileInput.files;
-  if(slot === 'back') fileBack.files = fileInput.files;
-  if(slot === 'engine') fileEngine.files = fileInput.files;
-  if(slot === 'chassis') fileChassis.files = fileInput.files;
-}
-
-/* run OCR on blob and populate appropriate input field */
-async function fillOCRFromBlob(blobOrFile, slot){
-  statusBox.innerText = 'Running OCR preview...';
-  const b = blobOrFile instanceof Blob ? blobOrFile : blobOrFile;
-  const text = await ocrBlob(b);
-  if(slot==='front'){ frontOCR.value = text.match(plateRegex) ? (text.match(plateRegex)[0]) : text.slice(0,80); }
-  if(slot==='back'){ backOCR.value = text.match(plateRegex) ? (text.match(plateRegex)[0]) : text.slice(0,80); }
-  if(slot==='engine'){ engineOCR.value = text.match(vinRegex) ? (text.match(vinRegex)[0]) : text.slice(0,80); }
-  if(slot==='chassis'){ chassisOCR.value = text.match(vinRegex) ? (text.match(vinRegex)[0]) : text.slice(0,80); }
-  statusBox.innerText = '';
-}
-
-/* capture handlers for each slot */
-async function captureSlotFromVideo(videoEl, thumbEl, hiddenFileInputId, slotName){
-  statusBox.innerText = 'Capturing image...';
-  const blob = await captureFrameBlobFromVideo(videoEl, true);
-  setThumb(thumbEl, blob);
-  // put blob into hidden file input
-  const file = new File([blob], `${slotName}-${Date.now()}.jpg`, { type: 'image/jpeg' });
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  if(hiddenFileInputId === 'fileFront') fileFront.files = dt.files;
-  if(hiddenFileInputId === 'fileBack') fileBack.files = dt.files;
-  if(hiddenFileInputId === 'fileEngine') fileEngine.files = dt.files;
-  if(hiddenFileInputId === 'fileChassis') fileChassis.files = dt.files;
-  // run preview OCR and fill editable field
-  await fillOCRFromBlob(file, slotName);
-  statusBox.innerText = '';
-}
-
-/* wire controls */
-captureFrontBtn.addEventListener('click', async ()=> {
-  if(videoFront && videoFront.srcObject) await captureSlotFromVideo(videoFront, thumbFront, 'fileFront', 'front');
-  else { fileFront.click(); }
-});
-captureBackBtn.addEventListener('click', async ()=> {
-  if(videoBack && videoBack.srcObject) await captureSlotFromVideo(videoBack, thumbBack, 'fileBack', 'back');
-  else { fileBack.click(); }
-});
-captureEngineBtn.addEventListener('click', async ()=> {
-  if(videoEngine && videoEngine.srcObject) await captureSlotFromVideo(videoEngine, thumbEngine, 'fileEngine', 'engine');
-  else { fileEngine.click(); }
-});
-captureChassisBtn.addEventListener('click', async ()=> {
-  if(videoChassis && videoChassis.srcObject) await captureSlotFromVideo(videoChassis, thumbChassis, 'fileChassis', 'chassis');
-  else { fileChassis.click(); }
-});
-
-/* file fallback buttons open hidden inputs */
-useFrontFileBtn.addEventListener('click', ()=> fileFront.click());
-useBackFileBtn.addEventListener('click', ()=> fileBack.click());
-useEngineFileBtn.addEventListener('click', ()=> fileEngine.click());
-useChassisFileBtn.addEventListener('click', ()=> fileChassis.click());
-
-/* when a hidden file input changes, handle it */
-fileFront.addEventListener('change', ()=> handleFileSelected(fileFront, 'front'));
-fileBack.addEventListener('change', ()=> handleFileSelected(fileBack, 'back'));
-fileEngine.addEventListener('change', ()=> handleFileSelected(fileEngine, 'engine'));
-fileChassis.addEventListener('change', ()=> handleFileSelected(fileChassis, 'chassis'));
-
-/* Try to start camera streams for each preview. Mobile will likely allow 1 stream; we will try to reuse stream if needed */
-(async function initStreams(){
-  // Try to reuse single stream for all video elements to save resources
-  if(!SUPPORTS_MEDIA) {
-    // hide video elements if not supported
-    [videoFront, videoBack, videoEngine, videoChassis].forEach(v=> v.style.display='none');
-    return;
+  function takePhoto(){
+    const video = document.getElementById('preview');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0);
+    stream.getTracks().forEach(t=>t.stop());
+    document.getElementById('cameraWrap').style.display='none';
+    canvas.toBlob(async blob=>{
+      const url = URL.createObjectURL(blob);
+      document.getElementById('thumb-'+currentSlot).src = url;
+      document.getElementById('thumb-'+currentSlot).style.display='inline-block';
+      // OCR preview
+      const { data:{text} } = await Tesseract.recognize(canvas,'eng');
+      document.getElementById('ocr-'+currentSlot).value = (text||"").trim();
+      document.getElementById('ocr-'+currentSlot).blob = blob; // store blob for upload
+    },'image/jpeg',0.9);
   }
-  try {
-    // request a single environment stream
-    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio:false });
-    // assign same stream to all video tags (most mobile browsers allow this)
-    [videoFront, videoBack, videoEngine, videoChassis].forEach(v => {
-      try { v.srcObject = s; v.play().catch(()=>{}); } catch(e){ console.warn(e); }
+
+  async function uploadAll(){
+    const email = document.getElementById('email').value;
+    if(!email){ alert("Email required"); return; }
+    const fd = new FormData();
+    fd.append('email', email);
+    fd.append('policyNumber', document.getElementById('policy').value||"");
+
+    ['front','back','engine','chassis'].forEach(slot=>{
+      const inp = document.getElementById('ocr-'+slot);
+      if(inp.blob){
+        fd.append(slot, inp.blob, slot+'.jpg');
+      }
+      fd.append('ocr.'+slot+'_text', inp.value||"");
     });
-  } catch(err){
-    console.warn('camera init failed', err);
-    // fallback: leave videos hidden and user will use file inputs
-    [videoFront, videoBack, videoEngine, videoChassis].forEach(v=> v.style.display='none');
+    if(document.getElementById('videoFile').files[0]){
+      fd.append('video', document.getElementById('videoFile').files[0]);
+    }
+
+    document.getElementById('status').innerText="Uploading...";
+    const res = await fetch(WEBHOOK,{method:'POST',body:fd});
+    document.getElementById('status').innerText = res.ok ? "Uploaded successfully" : "Upload failed: "+res.status;
   }
-})();
-
-/* final upload handler: gather files + OCR fields -> POST to webhook */
-uploadBtn.addEventListener('click', async () => {
-  statusBox.innerHTML = 'Preparing upload...';
-  const email = (emailInput.value || '').trim();
-  const policyNumber = (policyInput.value || '').trim();
-  if(!email){ statusBox.innerHTML = '<span class="bad">Please enter an email before uploading.</span>'; return; }
-  // ensure files present
-  const frontFile = fileFront.files[0] || null;
-  const backFile = fileBack.files[0] || null;
-  const engineFile = fileEngine.files[0] || null;
-  const chassisFile = fileChassis.files[0] || null;
-  const videoFile = videoFileInput.files[0] || null;
-  if(!frontFile || !backFile || !engineFile || !chassisFile){
-    statusBox.innerHTML = '<span class="bad">Please capture or attach front, back, engine and chassis photos.</span>'; return;
-  }
-
-  // take final OCR values from editable inputs
-  const frontText = (frontOCR.value || '').trim();
-  const backText = (backOCR.value || '').trim();
-  const engineText = (engineOCR.value || '').trim();
-  const chassisText = (chassisOCR.value || '').trim();
-
-  // derive detected strings with regex fallback
-  const plateFront = (frontText.match(plateRegex) || [frontText || ""])[0] || "";
-  const plateBack = (backText.match(plateRegex) || [backText || ""])[0] || "";
-  const vinEngine = (engineText.match(vinRegex) || [engineText || ""])[0] || "";
-  const vinChassis = (chassisText.match(vinRegex) || [chassisText || ""])[0] || "";
-
-  const ocr_ok = ((plateFront || plateBack) && (vinEngine || vinChassis)) ? 'true' : 'false';
-
-  // build FormData
-  const fd = new FormData();
-  fd.append('email', email);
-  fd.append('policyNumber', policyNumber);
-  fd.append('ocr.front_text', frontText);
-  fd.append('ocr.back_text', backText);
-  fd.append('ocr.engine_text', engineText);
-  fd.append('ocr.chassis_text', chassisText);
-  fd.append('plate.detected_front', plateFront || "");
-  fd.append('plate.detected_back', plateBack || "");
-  fd.append('vin.detected_engine', vinEngine || "");
-  fd.append('vin.detected_chassis', vinChassis || "");
-  fd.append('ocr_ok', ocr_ok);
-
-  fd.append('front', frontFile);
-  fd.append('back', backFile);
-  fd.append('engine', engineFile);
-  fd.append('chassis', chassisFile);
-  if(videoFile) fd.append('video', videoFile);
-
-  statusBox.innerHTML = 'Uploading to server...';
-  try{
-    const res = await fetch(WEBHOOK, { method: 'POST', body: fd });
-    let m = res.ok ? '<span class="ok">Upload successful.</span>' : `<span class="bad">Upload failed: ${res.statusText}</span>`;
-    try { const j = await res.json(); m += '<div class="small">Server: ' + JSON.stringify(j) + '</div>'; } catch(e){}
-    statusBox.innerHTML = m;
-  }catch(err){
-    console.error(err);
-    statusBox.innerHTML = `<span class="bad">Network/upload error: ${err.message}</span>`;
-  }
-});
   </script>
 </body>
 </html>
