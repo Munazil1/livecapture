@@ -5,71 +5,77 @@
 <title>Claim Capture — VIN Required</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  body{font-family:Inter,Arial,sans-serif;max-width:720px;margin:18px auto;padding:0 14px;color:#111}
+  body{font-family:Inter,Arial,sans-serif;max-width:780px;margin:18px auto;padding:0 14px;color:#111}
   h2{margin:0 0 8px}
-  label{display:block;margin-top:12px;font-weight:600}
+  .hint{font-size:13px;color:#555}
   .slot{margin-top:14px;padding:12px;border:1px solid #eee;border-radius:8px;background:#fafafa}
-  video{width:100%;border-radius:8px;background:#000;max-height:60vh;object-fit:cover}
-  .overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70%;height:22%;border:3px dashed rgba(255,255,255,0.9);border-radius:6px;pointer-events:none}
-  .thumb{width:120px;height:80px;object-fit:cover;border:1px solid #ccc;border-radius:6px;margin-top:6px}
-  .btn{background:#0b63d6;color:#fff;padding:8px 14px;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer}
-  .btn-ghost{background:#f0f0f0;color:#222;border:1px solid #ddd}
   .row{display:flex;gap:12px;align-items:center;margin-top:8px}
+  .thumb{width:120px;height:80px;object-fit:cover;border:1px solid #ccc;border-radius:6px}
+  .btn{background:#0b63d6;color:#fff;padding:8px 14px;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer}
+  .btn-ghost{background:#f5f5f5;border:1px solid #ddd;color:#111;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .small{font-size:13px;color:#666}
   input[type="file"]{display:none}
   input[type="text"], input[type="email"]{width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;margin-top:6px}
-  .hint{font-size:13px;color:#555;margin-top:6px}
+  #cameraWrap{display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:#000;z-index:999}
+  #preview{width:100%;height:100%;object-fit:cover}
+  .overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70%;height:22%;border:3px dashed rgba(255,255,255,0.9);border-radius:6px;pointer-events:none}
+  .camera-controls{position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:center;gap:12px}
   .status{margin-top:12px}
   .center{text-align:center}
 </style>
 </head>
 <body>
   <h2>Capture vehicle evidence — VIN required</h2>
-  <p class="hint">Please capture clear photos of: Front plate, Back plate, and a close-up of the Chassis/VIN plate (MANDATORY). Optionally attach a short 360° video. Do not proceed unless chassis/VIN photo is clear.</p>
+  <p class="hint">Please capture clear photos: Front plate, Back plate, and a close-up of the Chassis/VIN plate (MANDATORY). Optionally attach a short 360° video (record or upload a file). Upload will block if VIN (chassis) photo is not provided.</p>
 
   <!-- FRONT -->
   <div class="slot" id="slot-front">
     <h3>1) Front plate</h3>
-    <div class="hint">Align front number plate inside dashed box after camera opens.</div>
+    <div class="hint">Tap Capture to open the camera. Aim the plate inside the dashed box. If camera not working, use "Upload file".</div>
     <div class="row">
-      <button class="btn" onclick="startCapture('front')">Capture Front</button>
-      <button class="btn-ghost" onclick="document.getElementById('fileFront').click()">Use file</button>
-      <img id="thumb-front" class="thumb" style="display:none">
+      <button class="btn" onclick="openCameraFor('front')">Capture Front</button>
+      <label class="btn-ghost" for="fileFront">Upload File</label>
+      <input id="fileFront" type="file" accept="image/*">
+      <img id="thumb-front" class="thumb" style="display:none" alt="Front thumb">
     </div>
   </div>
 
   <!-- BACK -->
   <div class="slot" id="slot-back">
     <h3>2) Back plate</h3>
-    <div class="hint">Align rear number plate inside dashed box after camera opens.</div>
+    <div class="hint">Tap Capture to open the camera or upload a file if needed.</div>
     <div class="row">
-      <button class="btn" onclick="startCapture('back')">Capture Back</button>
-      <button class="btn-ghost" onclick="document.getElementById('fileBack').click()">Use file</button>
-      <img id="thumb-back" class="thumb" style="display:none">
+      <button class="btn" onclick="openCameraFor('back')">Capture Back</button>
+      <label class="btn-ghost" for="fileBack">Upload File</label>
+      <input id="fileBack" type="file" accept="image/*">
+      <img id="thumb-back" class="thumb" style="display:none" alt="Back thumb">
     </div>
   </div>
 
   <!-- CHASSIS (MANDATORY) -->
   <div class="slot" id="slot-chassis">
     <h3>3) Chassis / VIN (REQUIRED)</h3>
-    <div class="hint">IMPORTANT: take a close-up so the full VIN (usually 17 characters) is visible inside the dashed box. This is required to verify your claim.</div>
+    <div class="hint">This is required. Take a close-up so the full VIN (usually 17 characters) is visible inside the dashed box.</div>
     <div class="row">
-      <button class="btn" onclick="startCapture('chassis')">Capture Chassis (VIN)</button>
-      <button class="btn-ghost" onclick="document.getElementById('fileChassis').click()">Use file</button>
-      <img id="thumb-chassis" class="thumb" style="display:none">
+      <button class="btn" onclick="openCameraFor('chassis')">Capture Chassis (VIN)</button>
+      <label class="btn-ghost" for="fileChassis">Upload File</label>
+      <input id="fileChassis" type="file" accept="image/*">
+      <img id="thumb-chassis" class="thumb" style="display:none" alt="Chassis thumb">
     </div>
   </div>
 
   <!-- VIDEO -->
   <div class="slot" id="slot-video">
     <h3>Optional: 360° Walk-around Video</h3>
-    <div class="hint">Short video (5–15s) showing the vehicle exterior. Optional but helpful.</div>
-    <input type="file" id="videoFile" accept="video/*" capture="environment">
+    <div class="hint">Record a short walk-around (5–20s). Use "Record" (uses your camera) or upload a video file.</div>
+    <div class="row">
+      <button class="btn" id="recordBtn">Record Video</button>
+      <label class="btn-ghost" for="videoFile">Upload Video</label>
+      <input id="videoFile" type="file" accept="video/*">
+      <div id="videoPreview" style="margin-left:12px"></div>
+    </div>
+    <div class="small" style="margin-top:6px">Tip: rotate slowly around the car so damage and plates are visible.</div>
   </div>
-
-  <!-- Hidden fallback file inputs -->
-  <input id="fileFront" type="file" accept="image/*">
-  <input id="fileBack" type="file" accept="image/*">
-  <input id="fileChassis" type="file" accept="image/*">
 
   <!-- Contact -->
   <div style="margin-top:12px">
@@ -85,84 +91,71 @@
 
   <div id="status" class="status"></div>
 
-  <!-- camera modal (single shared) -->
-  <div id="cameraWrap" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background:#000; z-index:999;">
-    <video id="preview" autoplay playsinline style="width:100%; height:100%; object-fit:cover;"></video>
-    <div class="overlay" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:70%; height:22%; border:3px dashed rgba(255,255,255,0.9); border-radius:6px; pointer-events:none;"></div>
-    <div style="position:absolute; left:0; right:0; bottom:18px; display:flex; justify-content:center; gap:12px;">
-      <button class="btn" onclick="takePhoto()">Take Photo</button>
-      <button class="btn-ghost" onclick="cancelCapture()">Cancel</button>
+  <!-- camera modal -->
+  <div id="cameraWrap">
+    <video id="preview" autoplay playsinline></video>
+    <div class="overlay"></div>
+    <div class="camera-controls">
+      <button class="btn" id="takeBtn">Take Photo</button>
+      <button class="btn-ghost" id="cancelBtn">Cancel</button>
     </div>
   </div>
 
 <script>
-/* ========== CONFIG: set your n8n webhook URL here ========== */
-const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload";
-/* =========================================================== */
+/* ========= CONFIG ========= */
+const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; // <- your webhook
+/* ========================== */
 
-const SUPPORTS_MEDIA = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-let currentSlot = null;
-let currentStream = null;
+const supportsMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+let activeStream = null;
+let activeSlot = null;
+let mediaRecorder = null;
+let recordedChunks = [];
 
-// hidden file elements
-const fileFront = document.getElementById('fileFront');
-const fileBack = document.getElementById('fileBack');
-const fileChassis = document.getElementById('fileChassis');
+/* Wire file inputs -> use as fallback if camera not available */
+document.getElementById('fileFront').addEventListener('change', e => fileFallback(e.target.files[0], 'front'));
+document.getElementById('fileBack').addEventListener('change', e => fileFallback(e.target.files[0], 'back'));
+document.getElementById('fileChassis').addEventListener('change', e => fileFallback(e.target.files[0], 'chassis'));
+document.getElementById('videoFile').addEventListener('change', e => fileFallbackVideo(e.target.files[0]));
 
-// wire file fallback changes
-fileFront.addEventListener('change', () => handleFileFallback(fileFront.files[0], 'front'));
-fileBack.addEventListener('change', () => handleFileFallback(fileBack.files[0], 'back'));
-fileChassis.addEventListener('change', () => handleFileFallback(fileChassis.files[0], 'chassis'));
-
-function handleFileFallback(file, slot){
-  if(!file) return;
-  const thumb = document.getElementById('thumb-' + slot);
-  const url = URL.createObjectURL(file);
-  thumb.src = url;
-  thumb.style.display = 'inline-block';
-  thumb.blob = file; // store file as blob for upload
-}
-
-// start camera for a specific slot (opens modal)
-async function startCapture(slot){
-  currentSlot = slot;
-  document.getElementById('cameraWrap').style.display = 'block';
-  // require user gesture; open camera
-  if(!SUPPORTS_MEDIA){
-    alert('Camera not supported on this device — please use "Use file" to attach photos.');
+/* Open camera modal for a specific slot */
+async function openCameraFor(slot){
+  activeSlot = slot;
+  const wrap = document.getElementById('cameraWrap');
+  wrap.style.display = 'block';
+  // try start camera
+  if(!supportsMedia){
+    alert('Camera not supported — please use Upload File.');
     return;
   }
   try{
-    // request environment camera
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-    currentStream = stream;
+    // stop previous stream if any
+    if(activeStream) { activeStream.getTracks().forEach(t => t.stop()); activeStream = null; }
+    const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false };
+    activeStream = await navigator.mediaDevices.getUserMedia(constraints);
     const preview = document.getElementById('preview');
-    preview.srcObject = stream;
+    preview.srcObject = activeStream;
     await preview.play().catch(()=>{});
   }catch(err){
     console.warn('camera error', err);
-    alert('Unable to start camera. Please use the file upload fallback.');
-    document.getElementById('cameraWrap').style.display = 'none';
+    alert('Unable to access camera. Use Upload File instead.');
+    wrap.style.display = 'none';
   }
 }
 
-function cancelCapture(){
-  if(currentStream){
-    currentStream.getTracks().forEach(t => t.stop());
-    currentStream = null;
-  }
-  document.getElementById('cameraWrap').style.display = 'none';
-  currentSlot = null;
-}
+/* Cancel camera */
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  stopCamera();
+});
 
-// take photo from preview, store into thumbnail and as blob for upload
-function takePhoto(){
+/* Take photo from preview */
+document.getElementById('takeBtn').addEventListener('click', async () => {
   const preview = document.getElementById('preview');
-  if(!preview || !preview.videoWidth) {
+  if(!preview || !preview.videoWidth){
     alert('Camera not ready, try again.');
     return;
   }
-  // draw frame to canvas
+  // draw to canvas
   const canvas = document.createElement('canvas');
   canvas.width = preview.videoWidth;
   canvas.height = preview.videoHeight;
@@ -170,71 +163,154 @@ function takePhoto(){
   ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
 
   // stop camera
-  if(currentStream){
-    currentStream.getTracks().forEach(t => t.stop());
-    currentStream = null;
-  }
-  document.getElementById('cameraWrap').style.display = 'none';
+  stopCamera();
 
-  // crop center area slightly? we keep full image for backend processing
-  canvas.toBlob(function(blob){
-    const thumbEl = document.getElementById('thumb-' + currentSlot);
-    thumbEl.src = URL.createObjectURL(blob);
-    thumbEl.style.display = 'inline-block';
-    thumbEl.blob = blob; // store blob for upload
-    currentSlot = null;
+  // create blob
+  canvas.toBlob(blob => {
+    storePhotoBlob(blob, activeSlot);
   }, 'image/jpeg', 0.92);
+});
+
+/* stop camera helper */
+function stopCamera(){
+  try{
+    if(activeStream){
+      activeStream.getTracks().forEach(t => t.stop());
+      activeStream = null;
+    }
+    document.getElementById('cameraWrap').style.display = 'none';
+  }catch(e){ console.warn(e); document.getElementById('cameraWrap').style.display = 'none'; }
+  activeSlot = null;
 }
 
-// upload validation & send to webhook
+/* store blob into thumb and attach for upload */
+function storePhotoBlob(blob, slot){
+  const thumb = document.getElementById('thumb-' + slot);
+  thumb.src = URL.createObjectURL(blob);
+  thumb.style.display = 'inline-block';
+  thumb.blob = blob;
+  // clear any previous recorded video chunks if slot was video (not used)
+}
+
+/* fallback file selected */
+function fileFallback(file, slot){
+  if(!file) return;
+  // validate type is image
+  if(!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+  storePhotoBlob(file, slot);
+}
+
+/* video fallback file */
+function fileFallbackVideo(file){
+  if(!file) return;
+  const vp = document.getElementById('videoPreview');
+  vp.innerHTML = '';
+  const vid = document.createElement('video');
+  vid.controls = true;
+  vid.style.maxWidth = '160px';
+  vid.src = URL.createObjectURL(file);
+  vp.appendChild(vid);
+  vid.play().catch(()=>{});
+  // store video blob for upload
+  vp.blob = file;
+}
+
+/* RECORDING: Start/Stop via MediaRecorder (if supported) */
+const recordBtn = document.getElementById('recordBtn');
+recordBtn.addEventListener('click', async () => {
+  if(recordBtn.dataset.state === 'recording'){
+    // stop
+    mediaRecorder.stop();
+    recordBtn.innerText = 'Record Video';
+    recordBtn.dataset.state = 'idle';
+    return;
+  }
+
+  // start recording
+  if(!supportsMedia){ alert('Recording not supported in this browser. Please upload a video file.'); return; }
+
+  try{
+    const constraints = { video: { facingMode: { ideal: 'environment' } }, audio: true };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = e => { if(e.data && e.data.size) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      // stop tracks
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      // show preview
+      const vp = document.getElementById('videoPreview');
+      vp.innerHTML = '';
+      const vid = document.createElement('video');
+      vid.controls = true; vid.style.maxWidth = '160px';
+      vid.src = URL.createObjectURL(blob);
+      vp.appendChild(vid);
+      vid.play().catch(()=>{});
+      vp.blob = blob; // store for upload
+    };
+    mediaRecorder.start();
+    recordBtn.innerText = 'Stop Recording';
+    recordBtn.dataset.state = 'recording';
+  }catch(err){
+    console.warn('record error', err);
+    alert('Recording failed. Please use Upload file instead.');
+  }
+});
+
+/* UPLOAD ALL */
 async function uploadAll(){
   const statusEl = document.getElementById('status');
   statusEl.innerHTML = '';
   const email = (document.getElementById('email').value || '').trim();
-  if(!email){
-    statusEl.innerHTML = '<span style="color:#c0392b">Please enter email before uploading.</span>';
-    return;
-  }
-  // gather blobs
-  const frontThumb = document.getElementById('thumb-front');
-  const backThumb = document.getElementById('thumb-back');
+  if(!email){ statusEl.innerHTML = '<span style="color:#c0392b">Please enter email.</span>'; return; }
+
+  // chassis is required
   const chassisThumb = document.getElementById('thumb-chassis');
+  if(!chassisThumb.blob){ statusEl.innerHTML = '<span style="color:#c0392b">Chassis/VIN photo is required.</span>'; return; }
 
-  // requirement: chassis must exist
-  if(!chassisThumb.blob){
-    statusEl.innerHTML = '<span style="color:#c0392b">Chassis/VIN photo is required. Please capture it before uploading.</span>';
-    return;
-  }
-
-  // prepare FormData
   const fd = new FormData();
   fd.append('email', email);
-  fd.append('policyNumber', (document.getElementById('policy').value || '').trim());
+  fd.append('policyNumber', (document.getElementById('policy').value||'').trim());
 
-  // append images if available
+  const frontThumb = document.getElementById('thumb-front');
   if(frontThumb.blob) fd.append('front', frontThumb.blob, 'front.jpg');
+  const backThumb = document.getElementById('thumb-back');
   if(backThumb.blob) fd.append('back', backThumb.blob, 'back.jpg');
   if(chassisThumb.blob) fd.append('chassis', chassisThumb.blob, 'chassis.jpg');
-  const videoFile = document.getElementById('videoFile').files[0];
-  if(videoFile) fd.append('video', videoFile);
+
+  // video: prefer recorded blob (videoPreview.blob) then uploaded file
+  const vp = document.getElementById('videoPreview');
+  const recorded = vp && vp.blob;
+  if(recorded){
+    fd.append('video', recorded, 'walkaround.webm');
+  } else {
+    const fileVideo = document.getElementById('videoFile').files[0];
+    if(fileVideo) fd.append('video', fileVideo);
+  }
 
   statusEl.innerHTML = 'Uploading — please wait...';
-  try {
+  try{
     const res = await fetch(WEBHOOK, { method: 'POST', body: fd });
     if(res.ok){
-      // try parse JSON response for helpful message
       let info = '';
-      try { const j = await res.json(); info = '<div style="margin-top:8px;color:#333">Server: ' + JSON.stringify(j) + '</div>'; } catch(e){ }
-      statusEl.innerHTML = '<span style="color:green">Upload successful. We will notify you by email about next steps.</span>' + info;
+      try { const j = await res.json(); info = '<div class="small">Server: ' + JSON.stringify(j) + '</div>'; } catch(e){ }
+      statusEl.innerHTML = '<span style="color:green">Upload successful. You will receive a confirmation email shortly.</span>' + info;
+      // optional: clear page values or keep for user
     } else {
       statusEl.innerHTML = `<span style="color:#c0392b">Upload failed: ${res.status} ${res.statusText}</span>`;
     }
-  } catch(err){
+  }catch(err){
     console.error(err);
-    statusEl.innerHTML = `<span style="color:#c0392b">Network error: ${err.message}</span>`;
+    statusEl.innerHTML = `<span style="color:#c0392b">Network/upload error: ${err.message}</span>`;
   }
 }
-</script>
 
+/* Helpful: if user navigates away, stop stream */
+window.addEventListener('beforeunload', () => {
+  try { if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); } catch(e){}
+});
+
+</script>
 </body>
 </html>
