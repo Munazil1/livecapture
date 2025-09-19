@@ -13,18 +13,35 @@
   .btn{background:#0b63d6;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin-top:14px;font-weight:600;cursor:pointer}
   .ok{color:green;font-weight:600}
   .bad{color:#c0392b;font-weight:600}
-  pre{background:#f7f7f8;padding:10px;border-radius:6px;overflow:auto}
+  .hint{font-size:12px;color:#666;margin-top:6px}
+  #preview {border-radius:8px; background:#000; width:100%; height:auto; max-height:60vh; object-fit:cover}
+  #overlay {box-sizing:border-box}
+  .controls {display:flex; gap:8px; align-items:center; margin-top:8px}
+  .statusbox {margin-top:12px}
 </style>
 </head>
 <body>
   <h2>Capture vehicle evidence</h2>
-  <p class="small">Use your phone camera. Capture clear front & rear photos (plate visible) and a close-up of engine/chassis plate. A short walk-around video is optional.</p>
+  <p class="small">Use your phone camera. Guided capture will help extract number plate & VIN. You can also use manual capture. After capture the form will upload automatically.</p>
 
-  <label>Front photo (camera)</label>
-  <input id="front" type="file" accept="image/*" capture="environment">
-  <div id="frontRes" class="small"></div>
+  <!-- LIVE FRONT CAPTURE (replaces simple front file input) -->
+  <label>Front photo (camera) — live capture</label>
+  <div style="position:relative; max-width:720px;">
+    <video id="preview" autoplay playsinline></video>
+    <!-- overlay rectangle: adjust via CSS or JS -->
+    <div id="overlay" style="position:absolute; left:50%; top:50%; width:70%; height:25%; transform:translate(-50%,-50%); border:3px dashed rgba(255,255,255,0.85); border-radius:6px; pointer-events:none;"></div>
+    <canvas id="captureCanvas" style="display:none;"></canvas>
+  </div>
 
-  <label>Back photo (camera)</label>
+  <div class="controls">
+    <button id="manualCapture" class="btn">Capture Front Now</button>
+    <button id="stopCamera" class="btn" style="background:#777">Stop Camera</button>
+    <span id="previewStatus" class="small" style="margin-left:8px;"></span>
+  </div>
+  <div class="hint">Tip: Align plate or VIN inside the dashed box. Good lighting and steady hands improve OCR.</div>
+
+  <!-- Keep the other inputs for redundancy -->
+  <label style="margin-top:14px">Back photo (camera)</label>
   <input id="back" type="file" accept="image/*" capture="environment">
   <div id="backRes" class="small"></div>
 
@@ -35,22 +52,222 @@
   <label>Short video (optional)</label>
   <input id="video" type="file" accept="video/*" capture="environment">
 
-  <label>Email</label>
+  <label style="margin-top:10px">Email</label>
   <input id="email" type="email" placeholder="you@company.com">
 
-  <div>
+  <div style="margin-top:12px">
     <button id="checkBtn" class="btn">Check OCR & Upload</button>
   </div>
 
-  <div id="status" style="margin-top:12px"></div>
+  <div id="status" class="statusbox"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <script>
-  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; 
+  /**************************************************************************
+   * Configuration
+   **************************************************************************/
+  const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; // <-- keep your webhook here
+  const AUTO_CAPTURE_INTERVAL_MS = 700;     // sample interval for preview OCR
+  const AUTO_CAPTURE_MIN_MATCH = 1;         // consecutive matches needed to auto-capture
+  const PREVIEW_WIDTH = 640;                // width used for OCR canvas
+  const OVERLAY_REL = { w: 0.7, h: 0.25 };  // overlay relative size (centered)
 
-  const vinRegex = /([A-HJ-NPR-Z0-9]{11,17})/i;
-  const plateRegex = /([A-Z0-9]{2,3}[-\s]?[A-Z0-9]{2,4})/i;
+  // regex patterns (tune by country)
+  const plateRegex = /[A-Z0-9]{2,3}[-\s]?[A-Z0-9]{2,4}/i;
+  const vinRegex   = /[A-HJ-NPR-Z0-9]{11,17}/i;
 
+  /**************************************************************************
+   * Elements
+   **************************************************************************/
+  const preview = document.getElementById('preview');
+  const captureCanvas = document.getElementById('captureCanvas');
+  const manualCapture = document.getElementById('manualCapture');
+  const stopCameraBtn = document.getElementById('stopCamera');
+  const previewStatus = document.getElementById('previewStatus');
+  const statusBox = document.getElementById('status');
+
+  let streamRef = null;
+  let scanTimer = null;
+  let consecutiveMatches = 0;
+
+  /**************************************************************************
+   * Camera + preview setup
+   **************************************************************************/
+  async function startCamera(){
+    try{
+      const constraints = {
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+        audio: false
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef = stream;
+      preview.srcObject = stream;
+      await preview.play();
+      setupCanvas();
+      startAutoScan();
+      previewStatus.innerText = 'Camera running – waiting for plate/VIN';
+    }catch(err){
+      console.error('Camera start failed', err);
+      previewStatus.innerText = 'Camera access required. Use manual capture if needed.';
+    }
+  }
+
+  function stopCamera(){
+    if(streamRef){
+      streamRef.getTracks().forEach(t => t.stop());
+      streamRef = null;
+    }
+    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+    previewStatus.innerText = 'Camera stopped';
+  }
+
+  function setupCanvas(){
+    // set canvas size for OCR sampling
+    // we will use PREVIEW_WIDTH and scaled height based on video aspect
+    const vw = preview.videoWidth || PREVIEW_WIDTH;
+    const vh = preview.videoHeight || Math.round(PREVIEW_WIDTH * 0.6);
+    captureCanvas.width = PREVIEW_WIDTH;
+    captureCanvas.height = Math.round(PREVIEW_WIDTH * (preview.videoHeight / (preview.videoWidth || PREVIEW_WIDTH) || 0.6));
+  }
+
+  /**************************************************************************
+   * Capture & OCR helpers
+   **************************************************************************/
+  // capture region from overlay and return Blob
+  function captureFrameBlob(){
+    const ctx = captureCanvas.getContext('2d');
+    // draw current video frame scaled to canvas
+    ctx.drawImage(preview, 0, 0, captureCanvas.width, captureCanvas.height);
+
+    // compute overlay crop area (centered)
+    const sw = Math.round(captureCanvas.width * OVERLAY_REL.w);
+    const sh = Math.round(captureCanvas.height * OVERLAY_REL.h);
+    const sx = Math.round((captureCanvas.width - sw) / 2);
+    const sy = Math.round((captureCanvas.height - sh) / 2);
+
+    // copy cropped region onto temporary canvas
+    const c2 = document.createElement('canvas');
+    c2.width = sw; c2.height = sh;
+    c2.getContext('2d').drawImage(captureCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    // optional: quick enhancement (contrast)
+    try {
+      const iData = c2.getContext('2d').getImageData(0,0,sw,sh);
+      const data = iData.data;
+      const contrast = 1.15;
+      const intercept = 128*(1-contrast);
+      for(let i=0;i<data.length;i+=4){
+        data[i]   = Math.min(255, Math.max(0, data[i]*contrast + intercept));
+        data[i+1] = Math.min(255, Math.max(0, data[i+1]*contrast + intercept));
+        data[i+2] = Math.min(255, Math.max(0, data[i+2]*contrast + intercept));
+      }
+      c2.getContext('2d').putImageData(iData,0,0);
+    } catch(e){
+      // ignore enhancement errors on some devices
+    }
+
+    return new Promise(res => c2.toBlob(res, 'image/jpeg', 0.9));
+  }
+
+  async function runOCRBlob(blob){
+    try{
+      // convert to dataURL for tesseract
+      const dataUrl = await new Promise(r=>{
+        const fr = new FileReader();
+        fr.onload = ()=>r(fr.result);
+        fr.readAsDataURL(blob);
+      });
+      const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: m => {} });
+      return (text || '').trim();
+    } catch(err){
+      console.warn('Tesseract OCR error', err);
+      return '';
+    }
+  }
+
+  /**************************************************************************
+   * Auto-scan loop
+   **************************************************************************/
+  function startAutoScan(){
+    if(scanTimer) return;
+    consecutiveMatches = 0;
+    scanTimer = setInterval(async () => {
+      if(preview.readyState < 2) return;
+      try {
+        const blob = await captureFrameBlob();
+        const text = await runOCRBlob(blob);
+        const plate = (text.match(plateRegex) || [null])[0];
+        if(plate){
+          consecutiveMatches++;
+          previewStatus.innerText = `Preview detected plate: ${plate} (auto in ${Math.max(0, AUTO_CAPTURE_MIN_MATCH - consecutiveMatches)})`;
+        } else {
+          consecutiveMatches = 0;
+          previewStatus.innerText = 'No plate visible in overlay';
+        }
+        if(consecutiveMatches >= AUTO_CAPTURE_MIN_MATCH){
+          // auto-capture action
+          clearInterval(scanTimer); scanTimer = null;
+          previewStatus.innerText = `Auto-captured plate: ${plate}`;
+          // convert blob into a File and set front input then trigger upload
+          const fileBlob = await captureFrameBlob(); // capture final frame
+          await attachFileToInput('front', fileBlob, `front-${Date.now()}.jpg`);
+          // trigger upload flow
+          await triggerUploadFromAuto();
+          // keep camera running? we stop to conserve battery
+          stopCamera();
+        }
+      } catch(e) {
+        console.warn('Auto-scan error', e);
+      }
+    }, AUTO_CAPTURE_INTERVAL_MS);
+  }
+
+  /**************************************************************************
+   * Utility: attach Blob to file input
+   **************************************************************************/
+  async function attachFileToInput(inputId, blob, filename){
+    const file = new File([blob], filename, { type: 'image/jpeg' });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const input = document.getElementById(inputId);
+    input.files = dt.files;
+  }
+
+  /**************************************************************************
+   * Trigger upload when auto-capture finishes:
+   * calls the existing doChecks() which will read current file inputs and upload.
+   **************************************************************************/
+  async function triggerUploadFromAuto(){
+    // small delay to let UI update
+    setTimeout(()=> {
+      // call doChecks directly by clicking the button used for upload
+      document.getElementById('checkBtn').click();
+    }, 350);
+  }
+
+  /**************************************************************************
+   * Manual capture button
+   **************************************************************************/
+  manualCapture.addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    if(preview.readyState < 2){
+      previewStatus.innerText = 'Camera not ready';
+      return;
+    }
+    const blob = await captureFrameBlob();
+    await attachFileToInput('front', blob, `front-${Date.now()}.jpg`);
+    previewStatus.innerText = 'Manual front capture attached';
+  });
+
+  stopCameraBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    stopCamera();
+  });
+
+  /**************************************************************************
+   * Original upload + OCR checks flow (improved slightly)
+   **************************************************************************/
+  // helper to read file to base64 string (no dataURI prefix)
   function readFileAsDataURL(file){
     return new Promise((res,rej)=>{
       const r = new FileReader();
@@ -62,13 +279,18 @@
 
   async function ocrBase64(base64) {
     const dataUrl = 'data:image/jpeg;base64,' + base64;
-    const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng');
-    return text || "";
+    try{
+      const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: m => {} });
+      return (text || '').trim();
+    } catch(e){
+      console.warn('Tesseract error (full)', e);
+      return '';
+    }
   }
 
   async function doChecks(e){
-    e.preventDefault();
-    document.getElementById('status').innerText = "Running OCR checks...";
+    if(e && typeof e.preventDefault === 'function') e.preventDefault();
+    statusBox.innerText = "Running OCR checks...";
 
     const frontFile = document.getElementById('front').files[0];
     const backFile  = document.getElementById('back').files[0];
@@ -77,18 +299,19 @@
     const email = document.getElementById('email').value;
 
     if(!frontFile || !backFile || !engineFile || !email){
-      document.getElementById('status').innerHTML = '<span class="bad">Please provide front, back, engine photos and email.</span>';
+      statusBox.innerHTML = '<span class="bad">Please provide front, back, engine photos and email.</span>';
       return;
     }
 
     try{
-      // OCR step
+      // convert to base64 quickly
       const [frontBase64, backBase64, engineBase64] = await Promise.all([
         readFileAsDataURL(frontFile),
         readFileAsDataURL(backFile),
         readFileAsDataURL(engineFile)
       ]);
 
+      // run OCR (these are heavier; we keep results small)
       const [frontText, backText, engineText] = await Promise.all([
         ocrBase64(frontBase64),
         ocrBase64(backBase64),
@@ -106,12 +329,12 @@
       const pass = (frontPlate || backPlate) && engineVin;
 
       if(!pass){
-        document.getElementById('status').innerHTML = '<div class="bad">OCR checks failed. Still uploading as "ocr_failed".</div>';
+        statusBox.innerHTML = '<div class="bad">OCR checks failed. Still uploading as "ocr_failed".</div>';
       } else {
-        document.getElementById('status').innerHTML = '<div class="ok">OCR checks passed. Uploading now...</div>';
+        statusBox.innerHTML = '<div class="ok">OCR checks passed. Uploading now...</div>';
       }
 
-      // Always upload to n8n webhook
+      // Always upload to n8n webhook with OCR results and files
       const fd = new FormData();
       fd.append('email', email);
       fd.append('frontName', frontFile.name);
@@ -129,25 +352,38 @@
       fd.append('engine', engineFile);
       if(videoFile) fd.append('video', videoFile);
 
-      // Updated fetch handling
+      // send to webhook
       const res = await fetch(WEBHOOK, { method:'POST', body:fd });
       let msg = "Upload complete.";
       try {
         const json = await res.json();
         msg += " Response: " + JSON.stringify(json);
-      } catch {
-        msg += " (no JSON response)";
-      }
-      document.getElementById('status').innerHTML = res.ok 
+      } catch { msg += " (no JSON response)"; }
+      statusBox.innerHTML = res.ok 
         ? `<div class="ok">${msg}</div>`
         : `<div class="bad">Upload failed: ${res.statusText}</div>`;
+
     } catch(err){
       console.error(err);
-      document.getElementById('status').innerHTML = `<div class="bad">Error during OCR/upload: ${err.message}</div>`;
+      statusBox.innerHTML = `<div class="bad">Error during OCR/upload: ${err.message}</div>`;
     }
   }
 
+  /**************************************************************************
+   * Initialization
+   **************************************************************************/
   document.getElementById('checkBtn').addEventListener('click', doChecks);
+  // we delay camera start a bit to ensure page loaded
+  setTimeout(()=> {
+    // some browsers require user gesture before camera — not always auto-start
+    // we'll attempt to start and the user can click manual capture if permission blocked
+    startCamera();
+  }, 600);
+
+  // cleanup on page hide/unload
+  window.addEventListener('pagehide', stopCamera);
+  window.addEventListener('beforeunload', stopCamera);
+
   </script>
 </body>
 </html>
