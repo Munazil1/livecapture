@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Claim Capture — Guided</title>
+<title>Claim Capture</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   body{font-family:Inter,Arial,sans-serif;max-width:720px;margin:18px auto;padding:0 14px;color:#111}
@@ -12,8 +12,6 @@
   .overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70%;height:22%;border:3px dashed rgba(255,255,255,0.9);border-radius:6px;pointer-events:none}
   .thumb{width:100px;height:70px;object-fit:cover;border:1px solid #ccc;border-radius:6px;margin-top:6px}
   .btn{background:#0b63d6;color:#fff;padding:8px 14px;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer}
-  .ok{color:green;font-weight:600}
-  .bad{color:#c0392b;font-weight:600}
 </style>
 </head>
 <body>
@@ -23,28 +21,24 @@
     <h3>Front plate</h3>
     <button class="btn" onclick="startCapture('front')">Capture Front</button>
     <img id="thumb-front" class="thumb" style="display:none">
-    <input id="ocr-front" placeholder="OCR result" style="width:100%;margin-top:6px">
   </div>
 
   <div class="slot">
     <h3>Back plate</h3>
     <button class="btn" onclick="startCapture('back')">Capture Back</button>
     <img id="thumb-back" class="thumb" style="display:none">
-    <input id="ocr-back" placeholder="OCR result" style="width:100%;margin-top:6px">
   </div>
 
   <div class="slot">
-    <h3>Engine / VIN</h3>
+    <h3>Engine number</h3>
     <button class="btn" onclick="startCapture('engine')">Capture Engine</button>
     <img id="thumb-engine" class="thumb" style="display:none">
-    <input id="ocr-engine" placeholder="OCR result" style="width:100%;margin-top:6px">
   </div>
 
   <div class="slot">
     <h3>Chassis / VIN</h3>
     <button class="btn" onclick="startCapture('chassis')">Capture Chassis</button>
     <img id="thumb-chassis" class="thumb" style="display:none">
-    <input id="ocr-chassis" placeholder="OCR result" style="width:100%;margin-top:6px">
   </div>
 
   <div class="slot">
@@ -60,14 +54,13 @@
   <button class="btn" onclick="uploadAll()">Upload All</button>
   <div id="status" style="margin-top:12px"></div>
 
-  <!-- hidden video + overlay for capture -->
+  <!-- camera modal -->
   <div id="cameraWrap" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:#000;z-index:999">
     <video id="preview" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>
     <div class="overlay"></div>
     <button class="btn" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%)" onclick="takePhoto()">Take Photo</button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <script>
   const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook/capture-upload"; 
 
@@ -91,14 +84,12 @@
     canvas.getContext('2d').drawImage(video,0,0);
     stream.getTracks().forEach(t=>t.stop());
     document.getElementById('cameraWrap').style.display='none';
-    canvas.toBlob(async blob=>{
+    canvas.toBlob(blob=>{
       const url = URL.createObjectURL(blob);
-      document.getElementById('thumb-'+currentSlot).src = url;
-      document.getElementById('thumb-'+currentSlot).style.display='inline-block';
-      // OCR preview
-      const { data:{text} } = await Tesseract.recognize(canvas,'eng');
-      document.getElementById('ocr-'+currentSlot).value = (text||"").trim();
-      document.getElementById('ocr-'+currentSlot).blob = blob; // store blob for upload
+      const thumb = document.getElementById('thumb-'+currentSlot);
+      thumb.src = url;
+      thumb.style.display='inline-block';
+      thumb.blob = blob; // save blob for upload
     },'image/jpeg',0.9);
   }
 
@@ -110,11 +101,10 @@
     fd.append('policyNumber', document.getElementById('policy').value||"");
 
     ['front','back','engine','chassis'].forEach(slot=>{
-      const inp = document.getElementById('ocr-'+slot);
-      if(inp.blob){
-        fd.append(slot, inp.blob, slot+'.jpg');
+      const thumb = document.getElementById('thumb-'+slot);
+      if(thumb.blob){
+        fd.append(slot, thumb.blob, slot+'.jpg');
       }
-      fd.append('ocr.'+slot+'_text', inp.value||"");
     });
     if(document.getElementById('videoFile').files[0]){
       fd.append('video', document.getElementById('videoFile').files[0]);
