@@ -27,11 +27,11 @@
 <body>
   <div class="wrap">
     <h2>Claim Capture — VIN required</h2>
-    <p class="hint">Please provide clear photos: Front plate, Back plate, and a close-up of the Chassis/VIN plate (REQUIRED). Optionally add a 360° walk-around video. Use the single white button per slot — it opens the camera on mobile or the file picker on desktop.</p>
+    <p class="hint">Please provide clear photos: Front plate (REQUIRED), Back plate (REQUIRED), Chassis/VIN plate (REQUIRED), and optionally a 360° walk-around video or damage photos.</p>
 
     <!-- FRONT -->
     <div class="slot">
-      <h3>1) Front plate</h3>
+      <h3>1) Front plate (REQUIRED)</h3>
       <p class="hint">Upload or capture (camera will open on mobile).</p>
       <div class="row">
         <label class="btn-white" for="fileFront">Upload / Capture Front</label>
@@ -42,7 +42,7 @@
 
     <!-- BACK -->
     <div class="slot">
-      <h3>2) Back plate</h3>
+      <h3>2) Back plate (REQUIRED)</h3>
       <p class="hint">Upload or capture.</p>
       <div class="row">
         <label class="btn-white" for="fileBack">Upload / Capture Back</label>
@@ -59,6 +59,17 @@
         <label class="btn-white" for="fileChassis">Upload / Capture Chassis (VIN)</label>
         <input id="fileChassis" type="file" accept="image/*" capture="environment">
         <img id="thumb-chassis" class="thumb" alt="Chassis thumbnail">
+      </div>
+    </div>
+
+    <!-- DAMAGE PHOTO -->
+    <div class="slot">
+      <h3>4) Damage Photo</h3>
+      <p class="hint">Upload or capture a photo showing visible damage.</p>
+      <div class="row">
+        <label class="btn-white" for="fileDamage">Upload / Capture Damage</label>
+        <input id="fileDamage" type="file" accept="image/*" capture="environment">
+        <img id="thumb-damage" class="thumb" alt="Damage thumbnail">
       </div>
     </div>
 
@@ -98,11 +109,13 @@ const WEBHOOK = "https://pmitsdubai.app.n8n.cloud/webhook-test/capture-upload";
 const fileFront = document.getElementById('fileFront');
 const fileBack = document.getElementById('fileBack');
 const fileChassis = document.getElementById('fileChassis');
+const fileDamage = document.getElementById('fileDamage');
 const videoFile = document.getElementById('videoFile');
 
 const thumbFront = document.getElementById('thumb-front');
 const thumbBack = document.getElementById('thumb-back');
 const thumbChassis = document.getElementById('thumb-chassis');
+const thumbDamage = document.getElementById('thumb-damage');
 const videoPreview = document.getElementById('videoPreview');
 
 const uploadBtn = document.getElementById('uploadBtn');
@@ -138,6 +151,7 @@ function handleVideoInput(file) {
 fileFront.addEventListener('change', ()=> handleImageInput(fileFront, thumbFront));
 fileBack.addEventListener('change', ()=> handleImageInput(fileBack, thumbBack));
 fileChassis.addEventListener('change', ()=> handleImageInput(fileChassis, thumbChassis));
+fileDamage.addEventListener('change', ()=> handleImageInput(fileDamage, thumbDamage));
 videoFile.addEventListener('change', ()=> handleVideoInput(videoFile.files[0]));
 
 /* upload */
@@ -146,7 +160,15 @@ uploadBtn.addEventListener('click', async () => {
   const email = (document.getElementById('email').value || '').trim();
   if(!email){ statusEl.innerHTML = '<span style="color:'+getComputedStyle(document.body).getPropertyValue('--danger')+'">Email is required</span>'; return; }
 
-  // chassis required
+  // required: front, back, chassis
+  if(!thumbFront.blob && !(fileFront.files && fileFront.files[0])) {
+    statusEl.innerHTML = '<span style="color:#c0392b">Front plate photo is required. Please capture or upload it.</span>';
+    return;
+  }
+  if(!thumbBack.blob && !(fileBack.files && fileBack.files[0])) {
+    statusEl.innerHTML = '<span style="color:#c0392b">Back plate photo is required. Please capture or upload it.</span>';
+    return;
+  }
   if(!thumbChassis.blob && !(fileChassis.files && fileChassis.files[0])) {
     statusEl.innerHTML = '<span style="color:#c0392b">Chassis/VIN photo is required. Please capture or upload it.</span>';
     return;
@@ -156,7 +178,7 @@ uploadBtn.addEventListener('click', async () => {
   fd.append('email', email);
   fd.append('policyNumber', (document.getElementById('policy').value || '').trim());
 
-  // append images (prefer user-captured blob stored on thumb.*.blob if exists, else file inputs)
+  // append images
   if(thumbFront.blob) fd.append('front', thumbFront.blob, 'front.jpg');
   else if(fileFront.files && fileFront.files[0]) fd.append('front', fileFront.files[0]);
 
@@ -166,7 +188,10 @@ uploadBtn.addEventListener('click', async () => {
   if(thumbChassis.blob) fd.append('chassis', thumbChassis.blob, 'chassis.jpg');
   else if(fileChassis.files && fileChassis.files[0]) fd.append('chassis', fileChassis.files[0]);
 
-  // video: prefer preview.blob (uploaded) else file input
+  if(thumbDamage.blob) fd.append('damage', thumbDamage.blob, 'damage.jpg');
+  else if(fileDamage.files && fileDamage.files[0]) fd.append('damage', fileDamage.files[0]);
+
+  // video
   if(videoPreview.blob) fd.append('video', videoPreview.blob, 'walkaround.mp4');
   else if(videoFile.files && videoFile.files[0]) fd.append('video', videoFile.files[0]);
 
