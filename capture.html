@@ -5,34 +5,47 @@
 <title>Claim Capture — Simple Mobile Friendly</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <style>
-  :root{--muted:#f6f7f9;--white:#ffffff;--accent:#0b63d6;--danger:#c0392b;--text:#111}
-  html,body{height:100%;margin:0;padding:0;background:#fff;color:var(--text);font-family:Inter,Arial,sans-serif}
-  .wrap{max-width:780px;margin:14px auto;padding:14px}
-  h2{margin:0 0 8px;font-size:18px}
-  .hint{font-size:13px;color:#555;margin-bottom:10px}
-  .slot{margin-top:12px;padding:12px;border-radius:12px;background:var(--muted);box-shadow:inset 0 0 0 1px rgba(0,0,0,0.03)}
-  .slot h3{margin:0 0 6px;font-size:15px}
-  .slot .hint{margin:0 0 8px}
-  .row{display:flex;gap:10px;align-items:center}
-  .thumb{width:110px;height:76px;object-fit:cover;border-radius:8px;border:1px solid #ddd;display:none}
-  .btn-white{background:var(--white);border:1px solid #ddd;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+  :root{
+    --muted:#f8f9fb;
+    --white:#ffffff;
+    --accent:#0b63d6;
+    --accent-dark:#084a9e;
+    --danger:#d63031;
+    --success:#27ae60;
+    --text:#111;
+    --border:#e3e6ea;
+  }
+  html,body{height:100%;margin:0;padding:0;background:#f4f6f9;color:var(--text);font-family:"Inter",Arial,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:20px}
+  h2{margin:0 0 12px;font-size:22px;font-weight:600;color:var(--accent)}
+  .hint{font-size:14px;color:#555;margin-bottom:14px;line-height:1.4}
+  .slot{margin-top:18px;padding:16px;border-radius:14px;background:var(--white);box-shadow:0 1px 3px rgba(0,0,0,0.08),0 4px 12px rgba(0,0,0,0.04)}
+  .slot h3{margin:0 0 8px;font-size:16px;font-weight:600;color:#222}
+  .slot .hint{margin:0 0 10px;font-size:13px;color:#666}
+  .row{display:flex;gap:12px;align-items:center}
+  .thumb{width:120px;height:80px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:none}
+  .btn{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
+  .btn:hover{background:var(--accent-dark)}
+  .btn-white{background:var(--white);border:1px solid var(--border);padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
+  .btn-white:hover{background:#f1f3f6}
   .small{font-size:13px;color:#444}
   input[type="file"]{display:none}
-  input[type="email"], input[type="text"]{width:100%;padding:10px;border-radius:10px;border:1px solid #e6e6e6;margin-top:8px;font-size:15px}
-  .center{text-align:center;margin-top:12px}
-  .status{margin-top:12px;font-size:14px}
+  input[type="email"], input[type="text"]{width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);margin-top:6px;font-size:15px}
+  .center{text-align:center;margin-top:20px}
+  .status{margin-top:16px;font-size:14px;padding:10px 14px;border-radius:8px;display:none}
+  .status.success{background:#eafaf1;color:var(--success);display:block}
+  .status.error{background:#fdecea;color:var(--danger);display:block}
   .note{font-size:13px;color:#666;margin-top:6px}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h2>Claim Capture — VIN required</h2>
-    <p class="hint">Please provide clear photos: Front plate (REQUIRED), Back plate (REQUIRED), Chassis/VIN plate (REQUIRED), and optionally a 360° walk-around video or damage photos.</p>
+    <h2>Claim Capture</h2>
+    <p class="hint">Please upload clear photos of your vehicle: Front plate <b>(required)</b>, Back plate <b>(required)</b>, Chassis/VIN plate <b>(required)</b>, and optional damage photos or 360° walk-around video.</p>
 
     <!-- FRONT -->
     <div class="slot">
       <h3>1) Front plate (REQUIRED)</h3>
-      <p class="hint">Upload or capture (camera will open on mobile).</p>
       <div class="row">
         <label class="btn-white" for="fileFront">Upload / Capture Front</label>
         <input id="fileFront" type="file" accept="image/*" capture="environment">
@@ -43,7 +56,6 @@
     <!-- BACK -->
     <div class="slot">
       <h3>2) Back plate (REQUIRED)</h3>
-      <p class="hint">Upload or capture.</p>
       <div class="row">
         <label class="btn-white" for="fileBack">Upload / Capture Back</label>
         <input id="fileBack" type="file" accept="image/*" capture="environment">
@@ -54,7 +66,6 @@
     <!-- CHASSIS -->
     <div class="slot">
       <h3>3) Chassis / VIN (REQUIRED)</h3>
-      <p class="hint">REQUIRED: upload or capture a clear close-up so the VIN (≈17 chars) is visible.</p>
       <div class="row">
         <label class="btn-white" for="fileChassis">Upload / Capture Chassis (VIN)</label>
         <input id="fileChassis" type="file" accept="image/*" capture="environment">
@@ -65,7 +76,6 @@
     <!-- DAMAGE PHOTO -->
     <div class="slot">
       <h3>4) Damage Photo</h3>
-      <p class="hint">Upload or capture a photo showing visible damage.</p>
       <div class="row">
         <label class="btn-white" for="fileDamage">Upload / Capture Damage</label>
         <input id="fileDamage" type="file" accept="image/*" capture="environment">
@@ -76,7 +86,6 @@
     <!-- VIDEO -->
     <div class="slot">
       <h3>Optional: 360° Walk-around Video</h3>
-      <p class="hint">Record a short 5–20s walk-around video on your phone (or upload a file).</p>
       <div class="row">
         <label class="btn-white" for="videoFile">Upload / Capture Video</label>
         <input id="videoFile" type="file" accept="video/*" capture="environment">
@@ -86,15 +95,16 @@
     </div>
 
     <!-- Contact -->
-    <div style="margin-top:12px">
-      <label class="small">Email (we will notify you)</label>
+    <div class="slot">
+      <h3>Contact Information</h3>
+      <label class="small">Email (required, we will notify you)</label>
       <input id="email" type="email" placeholder="you@company.com" />
       <label class="small" style="margin-top:8px">Policy Number (optional)</label>
       <input id="policy" type="text" placeholder="POL- or claim number" />
     </div>
 
     <div class="center">
-      <button class="btn-white" style="margin-top:12px" id="uploadBtn">Upload & Submit</button>
+      <button class="btn" id="uploadBtn">Upload & Submit</button>
     </div>
 
     <div id="status" class="status"></div>
@@ -156,21 +166,30 @@ videoFile.addEventListener('change', ()=> handleVideoInput(videoFile.files[0]));
 
 /* upload */
 uploadBtn.addEventListener('click', async () => {
-  statusEl.innerHTML = '';
+  statusEl.className = "status";
+  statusEl.innerHTML = "";
+
   const email = (document.getElementById('email').value || '').trim();
-  if(!email){ statusEl.innerHTML = '<span style="color:'+getComputedStyle(document.body).getPropertyValue('--danger')+'">Email is required</span>'; return; }
+  if(!email){ 
+    statusEl.className = "status error";
+    statusEl.innerHTML = "Email is required.";
+    return; 
+  }
 
   // required: front, back, chassis
   if(!thumbFront.blob && !(fileFront.files && fileFront.files[0])) {
-    statusEl.innerHTML = '<span style="color:#c0392b">Front plate photo is required. Please capture or upload it.</span>';
+    statusEl.className = "status error";
+    statusEl.innerHTML = "Front plate photo is required.";
     return;
   }
   if(!thumbBack.blob && !(fileBack.files && fileBack.files[0])) {
-    statusEl.innerHTML = '<span style="color:#c0392b">Back plate photo is required. Please capture or upload it.</span>';
+    statusEl.className = "status error";
+    statusEl.innerHTML = "Back plate photo is required.";
     return;
   }
   if(!thumbChassis.blob && !(fileChassis.files && fileChassis.files[0])) {
-    statusEl.innerHTML = '<span style="color:#c0392b">Chassis/VIN photo is required. Please capture or upload it.</span>';
+    statusEl.className = "status error";
+    statusEl.innerHTML = "Chassis/VIN photo is required.";
     return;
   }
 
@@ -195,22 +214,28 @@ uploadBtn.addEventListener('click', async () => {
   if(videoPreview.blob) fd.append('video', videoPreview.blob, 'walkaround.mp4');
   else if(videoFile.files && videoFile.files[0]) fd.append('video', videoFile.files[0]);
 
-  statusEl.innerHTML = 'Uploading — please wait...';
+  statusEl.className = "status";
+  statusEl.innerHTML = "Uploading — please wait...";
+  statusEl.style.display = "block";
+
   try{
     const res = await fetch(WEBHOOK, { method: 'POST', body: fd });
     if(res.ok){
-      let message = '<span style="color:green">Upload successful. You will receive an email soon.</span>';
+      statusEl.className = "status success";
+      let message = "Upload successful. You will receive an email soon.";
       try {
         const j = await res.json();
-        message += '<div class="small">Server: ' + JSON.stringify(j) + '</div>';
+        message += "<div class='small'>Server: " + JSON.stringify(j) + "</div>";
       } catch(e){}
       statusEl.innerHTML = message;
     } else {
-      statusEl.innerHTML = '<span style="color:#c0392b">Upload failed: ' + res.status + ' ' + res.statusText + '</span>';
+      statusEl.className = "status error";
+      statusEl.innerHTML = "Upload failed: " + res.status + " " + res.statusText;
     }
   }catch(err){
     console.error(err);
-    statusEl.innerHTML = '<span style="color:#c0392b">Network error: '+err.message+'</span>';
+    statusEl.className = "status error";
+    statusEl.innerHTML = "Network error: " + err.message;
   }
 });
 </script>
